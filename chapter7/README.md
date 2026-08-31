@@ -1,7 +1,7 @@
 # Chapter 7 — Lambdas and Streams (items 42–48)
 
-Round 1 covers the *lambda + functional-interface* items (42–44); the stream
-items (45–48) continue below.
+All eight items are now built. Items 42–44 cover lambdas and functional
+interfaces; items 45–48 cover streams.
 
 | Item | Title | Core idea |
 |------|-------|-----------|
@@ -92,12 +92,114 @@ shows the standard forms working directly.
 
 ---
 
-## Senior checklist (round 1)
+## Item 45 — Use streams judiciously
+
+A stream pipeline can be as opaque as it is clever. The book's advice: streams
+shine for **uniform transformations over a homogeneous sequence** — filter,
+map, reduce, collect — and over some loop-heavy, nested-index code. They're the
+wrong tool the moment the code needs to read a file and return early, needs to
+see neighbours, or is clearer as a small imperative loop.
+
+The senior discipline: **if the stream is denser than the loop it replaces,
+it's not better.** Prefer readability; split a long chain into named
+intermediate variables; and where an indexed `for` reads plainly, use it.
+
+**Sample:** `BadStreamSpaghetti.letterCountsAcrossLines` squeezes a 20-line
+job into one dense `flatMap→filter→map→map→collect` chain.
+`GoodClearStreams.letterCounts` is a plain nested loop using `merge`. The test
+proves both count the *identical* letters — the improvement is purely clarity,
+which is the whole point.
+
+---
+
+## Item 46 — Prefer side-effect-free functions in streams
+
+A stream's functions should be **pure**: no shared mutable state, no writing
+outside the pipeline. The biggest red flag is using `forEach` to stuff results
+into an *external* collection:
+
+```java
+List<String> bucket = new ArrayList<>();
+stream.forEach(w -> bucket.add(w.toUpperCase()));   // side effect, order-dependent
+```
+
+This mutation breaks stream reuse, makes the pipeline dependent on encounter
+order, and is **unsafe in parallel** — multiple threads writing the same list
+race. The pure equivalent collects *inside* the pipeline:
+
+```java
+List<String> result = stream.map(String::toUpperCase).collect(Collectors.toList());
+```
+
+If you genuinely need side effects (logging, I/O), do it deliberately in a
+`forEach` whose purpose is the side effect — and keep it sequential.
+
+**Sample:** `BadStatefulCollect` uses a side-effecting `forEach` into an
+external `ArrayList`; `GoodCollectors` maps and `collect(Collectors.toList())`
+purely. `SideEffectFreeTest` shows both produce the same result — but only the
+good version is order-independent and parallel-safe.
+
+---
+
+## Item 47 — Prefer `Collection` to `Stream` as a return type
+
+`Stream<T>` has no `size()`, no `get(i)`, and — critically — is **a single-use,
+consumable value**. Once you `.count()` or `.collect()` it, it's gone; a second
+read throws `IllegalStateException`.
+
+An API method that returns data the caller might want to inspect more than once,
+pass around, or keep, should return a `Collection` (typically `List`/`Set`, or a
+lazy but re-iterable type for huge data). Make the *operation* stream-based
+internally, but hand back a concrete, re-iterable collection. Stream explicitly
+only when the caller is committed to a one-shot pipeline (huge/infinite data,
+monadic pipelines).
+
+**Sample:** `BadStreamOnlyApi` hands out a one-shot `Stream<Tuple>`; reading it
+twice throws. `GoodCollectionApi` returns an immutable `Collection<Tuple>` and
+provides a separate `recentScoresStream()` for callers who want to stream.
+`CollectionReturnTest` shows the collection re-iterated and queried by `size()`
+while the stream throws on its second pass.
+
+---
+
+## Item 48 — Use caution when making streams parallel
+
+`parallelStream()` looks like free speed, but it's only correct when every
+intermediate operation is **pure, stateless, and lifting the assumptions of
+shared mutable state and encounter order**. Two rules dominate:
+
+1. **Never parallelize side-effecting code.** Item 46's
+   `forEach`-into-a-shared-list becomes a data race under parallelism.
+2. **Use associative reductions.** A parallel pipeline splits the work, so
+   `reduce`/`sum` must be associative (`(a+b)+c == a+(b+c)`) — then the
+   framework combines sub-results safely and deterministically.
+
+Even then there's no guarantee a parallel stream is faster — the fork/join
+overhead can dwarf the savings on small or ordered pipelines. Measure first.
+
+**Sample:** `BadParallelSum.badParallelSum` runs `parallelStream().forEach(v ->
+total[0] += v)` into a shared `long[]`. `ParallelCautionTest` shows the 
+sequential baseline is exact (`499999500000`) while the parallel mutation is
+racy — the demo we ran returned `142288531317`. `GoodParallelReduce.sum` uses
+`parallel().asLongStream().sum()`, an associative reduce that stays exactly
+`499999500000` every run.
+
+---
+
+## Senior checklist
 
 - [ ] Function values are lambdas unless they need state/`this`/multiple methods (42).
 - [ ] Prefer a method reference whenever one already states the body's intent (43).
 - [ ] Custom single-method interfaces are almost always a standard
       `java.util.function` type instead (44).
+- [ ] Streams for uniform transformations; a plain loop where it reads better, and
+      never force a pipeline (45).
+- [ ] Stream functions are pure; collect via `Collectors`, never `forEach` into
+      external state (46).
+- [ ] Methods returning small, re-iterable data return `Collection`, not
+      one-shot `Stream` (47).
+- [ ] Parallel streams only on stateless, associative-reduction pipelines, and
+      only after measuring (48).
 
 ## Exercises
 

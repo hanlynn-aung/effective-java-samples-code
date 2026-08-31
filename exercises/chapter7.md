@@ -45,3 +45,32 @@ give a one-line real-world use for each:
 
 Then write a `Predicate<String> nonBlank` and a `Function<Integer,String>`
 using method references (not lambdas) — touching items 43 + 44 together.
+
+## Exercise 5 — Stream or loop? (item 45)
+
+Given a `List<Transaction>` with `getAmount()` and `getDate()`, write the daily
+totals. Show (a) a clean stream pipeline and (b) a plain loop, and say, with
+one concrete reason, which you'd ship at a code review — and why.
+
+## Exercise 6 — Purify it (item 46)
+
+```java
+Map<String, Integer> totals = new HashMap<>();
+transactions.stream().forEach(t -> totals.merge(t.getName(), t.getAmount(), Integer::sum));
+```
+
+Rewrite using `Collectors.toMap` (or `groupingBy`) so there is no side effect,
+and explain why the original is both order-dependent and unsafe to parallelize.
+
+## Exercise 7 — Return type judgment (item 47)
+
+An API method `frequentWords()` can return either `Stream<String>` or
+`Collection<String>`. A caller wants to print the count, then print the words,
+then pass the list to another method. Which return type serves the caller
+better, and what happens if it's a `Stream`?
+
+## Exercise 8 — Parallel audit (item 48)
+
+`employees.parallelStream().forEach(e -> cache.put(e.id, e))` into a shared
+`HashMap` — the developer "made it fast" with `parallelStream`. Explain exactly
+why this is unsafe (two distinct reasons), and give the safe rewrite.
