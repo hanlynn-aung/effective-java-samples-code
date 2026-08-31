@@ -51,3 +51,58 @@ Show the exact `double` value of `tax` (or the drift class of error), then
 rewrite using `BigDecimal` built from `String`, rounding to 2 decimals with
 `HALF_UP` at the end. State two alternatives to `BigDecimal` that are also
 exact.
+
+## Exercise 5 — Spot the boxed trap (item 61)
+
+```java
+Map<String, Integer> ages = new HashMap<>();
+ages.put("a", 25);
+ages.put("b", null);
+boolean ok = ages.get("a") != ages.get("b");
+int sum = ages.get("a") + ages.get("b");
+```
+
+Predict what each line does — and which one throws and why. Then rewrite so
+`null` is a supported, explicitly-handled case using only primitives where
+possible.
+
+## Exercise 6 — Kill the magic strings (item 62)
+
+```java
+public void setStatus(String status) {
+    if (!(status.equals("NEW") || status.equals("OPEN") || status.equals("CLOSED")))
+        throw new IllegalArgumentException();
+    this.status = status;
+}
+public boolean isOpen() { return status.equals("OPEN"); }
+```
+
+Rewrite with an `enum Status { NEW, OPEN, CLOSED }`. Explain the two compile-time
+guarantees you gain and one behaviour you could attach to the enum that the
+string form cannot express.
+
+## Exercise 7 — Repair the joiner (item 63)
+
+```java
+public String csv(Iterable<String> rows) {
+    String out = "";
+    for (String row : rows) out = out + "," + row;
+    return out.substring(1);
+}
+```
+
+Identify the asymptotic problem, rewrite using `StringBuilder` with a sensible
+initial capacity, and say when a one-liner `String.join` is the better call.
+
+## Exercise 8 — Interface over implementation (item 64)
+
+```java
+public class Cache {
+    private final HashMap<String, Entry> store = new HashMap<>();
+    public HashMap<String, Entry> entries() { return store; }
+}
+```
+
+Critique the signature against item 64: what's locked in, and why can't the
+field type change later? Rewrite the field, constructor/initializer, and return
+type as interfaces, and name two concrete impls each `Map`/`List` could swap to.

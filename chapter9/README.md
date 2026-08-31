@@ -1,7 +1,8 @@
 # Chapter 9 — General Programming (items 57–68)
 
 The craft of everyday code: scoping, loops, libraries, and exact arithmetic.
-Round 1 covers items 57–60; rounds 2 and 3 continue through item 68.
+Round 1 covered items 57–60; round 2 covers items 61–64; round 3 finishes
+through item 68.
 
 ---
 
@@ -96,6 +97,105 @@ drift (`0.6000000000000001`) versus the exact `0.60`.
 
 ---
 
+## Item 61 — Prefer primitive types to boxed primitives
+
+Boxed types (`Integer`, `Long`, `Double`, …) exist to let primitives live in
+generic containers; they are **not** a "safer Integer". Three ways they bite:
+
+1. **`==` is identity, not value.** `sameRank(1000, 1000)` compares object
+   references, so it's `false` even with equal numbers (values −128…127 happen
+   to be cached and compare equal — silently, inconsistently).
+2. **Unboxing `null` throws `NullPointerException`.** `value > best` where
+   `value` is a `null` `Integer` NPEs at the comparison.
+3. **`==`/`!=` on two boxed operands uses identity**, while `>=`/`<=` unboxes —
+   mixing the two semantics in one expression is a notorious trap.
+
+When to still box: as **type parameters** of generics (`List<Integer>`) and in
+arrays of generic type — there, the box is unavoidable. Everywhere else use the
+primitive.
+
+**Sample:** `BadBoxedTrap` compares `Integer`s with `==` (identity) and unboxes
+into a comparison (`value > best`), NPE-ing on a `null` value.
+`GoodPrimitives` uses `long`/`int` everywhere plus `Long.compare`,
+`Integer.MIN_VALUE` sentinels, and `==` on primitives (true value semantics).
+`BoxedPrimitiveTest` pins the identity vs. value and null-unboxing failures.
+
+---
+
+## Item 62 — Avoid strings where other types are more appropriate
+
+Strings are seductive — they print nicely and need no import — but a
+`String` used as a *state, a type, a key, or an identifier* is a weak, silent
+contract:
+
+- **Type safety:** nothing stops a caller typing `"Ready"` vs `"ready"`; a
+  string literal typo or casing difference silently changes behaviour.
+- **No structure:** there's no compiler to catch a third bogus value.
+- **Perf/parsing:** string keys need hashing/parsing instead of value equality.
+
+Use the right type: an **`enum`** for a bounded set of states/kinds (also gives
+you `switch`, `values()`, and later attached behaviour — item 34); a value
+object / `record` for structured data; `UUID` or a typed id for identifiers.
+
+**Sample:** `BadStringState` models a status with `"PENDING"`/`"READY"` magic
+strings — `isReady()` and `advance()` depend on exact literal matches, so
+`"Ready"` silently misbehaves. `GoodTypedEnum` models `Status` as an `enum`;
+the compiler enforces valid values and casing is irrelevant.
+`StringVsTypeTest` shows the bad string typo returning `false` while the enum
+path is unambiguous.
+
+---
+
+## Item 63 — Beware the performance of string concatenation
+
+`String` is immutable, so `result += part` in a loop **copies the entire
+accumulating string every iteration** — O(n²) total for a loop building an
+O(n) result. The demo measured **407 ms** (`+=` in a 50k loop) vs **4 ms**
+(`StringBuilder`, O(n)) — a ~100× difference at moderate size.
+
+Fix with:
+
+```java
+StringBuilder sb = new StringBuilder(expectedCapacity);
+for (...) { sb.append(part); }
+return sb.toString();
+```
+
+Prefer an **initial capacity** so the buffer doesn't grow and recopy. (A single
+`a + b` or two/three `+` is fine — the compiler already rewrites it; the trap is
+accumulating *in a loop*.) Java 15+ also offers `String.repeat` and text blocks
+for some of these cases.
+
+**Sample:** `BadConcatLoop.repeat` accumulates with `+=`; `GoodStringBuilder`
+pre-sizes a `StringBuilder`. `ConcatTest` proves identical output at both small
+and 10k-repeat sizes; the demo times the quadratic vs. linear paths so you can
+see (not guess) the gap.
+
+---
+
+## Item 64 — Refer to objects by their interfaces
+
+Declare fields, parameters, return types, and variables as the **interface / base
+type** (`List`, `Map`, `Collection`, `CharSequence`, `InputStream`), not the
+concrete class (`ArrayList`, `HashMap`). A `List`-typed program can be given
+`ArrayList`, `LinkedList`, `CopyOnWriteArrayList`, or a view — its behaviour is
+locked to the contract, not an impl, so:
+
+- callers can choose the implementation that fits (concurrency, ordering, size).
+- you can swap internals later **without touching callers** (a signature change
+  is the disaster a concrete type forces).
+- readers reason against the stable contract, not a mutable implementation.
+
+Only use a concrete type when the interface lacks a feature you truly need
+(e.g. `LinkedHashMap`'s iteration order, `PriorityQueue`'s heap-ish access).
+
+**Sample:** `BadConcreteType` declares `ArrayList`/`HashMap` — the constructor
+signature forces callers to supply exactly those. `GoodInterfaceType` declares
+`List`/`Map`, so the test passes a `LinkedList`/`TreeMap` with no code change.
+`InterfaceTypeTest` demonstrates both behave identically across impls.
+
+---
+
 ## Senior checklist
 
 - [ ] Variables declared where ready, in the smallest block that needs them (57).
@@ -104,7 +204,11 @@ drift (`0.6000000000000001`) versus the exact `0.60`.
 - [ ] Prefer the JDK library to hand-rolled logic; search before writing (59).
 - [ ] Money/decimal-exact values are `BigDecimal` or integer minor units, never
       `float`/`double` (60).
+- [ ] Primitives by default; box only for generic type parameters (61).
+- [ ] No magic strings for states/kinds/ids — use enums and value types (62).
+- [ ] Build strings with `StringBuilder` (pre-sized) inside loops, never `+=` (63).
+- [ ] Refer to objects by interface (`List`/`Map`) so implementations can vary (64).
 
 ---
 
-*Rounds 2 (61–64) and 3 (65–68) continue.*
+*Round 3 (65–68) continues.*
