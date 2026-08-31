@@ -1,4 +1,4 @@
-# Chapter 5 — Exercises (items 26–29)
+# Chapter 5 — Exercises (items 26–33)
 
 Work through before reading the solutions.
 
@@ -46,3 +46,48 @@ Design a `Queue<E>` that stores elements in a `List<E>` backing field. It must:
 
 Explain one alternative storage choice that *would* need an unchecked cast,
 and where exactly you would place the suppression.
+
+## Exercise 5 — Annotate the helper (item 30)
+
+Why does this fail to compile, and what is the minimal generic signature that fixes it?
+
+```java
+static Comparable max(Set values) { ... raw impl ... }
+```
+
+Then write the *recursive bound* signature for a `max` that works for `String`s,
+`Integer`s, and any `Comparable`-of-itself type.
+
+## Exercise 6 — PECS by hand (item 31)
+
+Mark each of these parameter types as `? extends`, `? super`, or plain `T`,
+with a one-line reason:
+
+1. `void fill(List<___> source, List<___> target)` — copies every element of
+   `source` into `target` (`source` yields, `target` receives).
+2. `boolean addAll(Collection<___> values)` — adds `values` into this
+   (consumer) collection.
+3. `T pick(Collection<___> options)` — returns one element.
+
+## Exercise 7 — Varargs audit (item 32)
+
+Explain in 2–4 sentences how `stringLists` becomes poisonable in this method,
+what the caller's compiler warning is telling you, and why `@SafeVarargs`
+cannot be applied to it:
+
+```java
+static void dangerous(List<String>... stringLists) {
+    Object[] array = stringLists;
+    array[0] = List.of(42);
+}
+```
+
+## Exercise 8 — The heterogeneous container (item 33)
+
+With `GoodFavorites`, trace runtime behavior of this snippet and explain why
+`put` itself throws instead of letting an inconsistent value into the map:
+
+```java
+GoodFavorites f = new GoodFavorites();
+f.put((Class)(Object) String.class, Integer.valueOf(7));
+```
