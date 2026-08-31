@@ -58,7 +58,7 @@ On Windows PowerShell, quote the mainClass argument:
 | 1 | Static factory methods (item 1) | Named construction, instance control / caching, returning subtypes, when the constructor is still right |
 | 2 | Creating & destroying objects (items 1–9) | Builders, singletons, noninstantiability, DI, avoiding needless objects, obsolete references, try-with-resources |
 | 3 | Methods common to all objects (items 10–14) | `equals`/`hashCode`/`toString` contracts, clone vs copy factories, `Comparable` |
-| 4 | Composition over inheritance (item 18) | Fragile inheritance, delegation wrappers |
+| 4 | Classes & interfaces (items 15–25) | Encapsulation & access levels, accessors, immutability, composition, fragile inheritance, interfaces, tagged-class hazards, nested classes |
 | 5 | Generics & type safety (items 26–33) | Raw types, wildcards, PECS, bounded type parameters |
 | 6 | Enums & annotations (items 34–41) | Enums with behaviour, `EnumSet`/`EnumMap`, strategy enum |
 | 7 | Lambdas & streams (items 42–48) | Method references, side-effect-free streams, parallel safety |
