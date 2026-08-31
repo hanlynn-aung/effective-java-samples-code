@@ -56,3 +56,28 @@ Write a minimal `interface Ranged` with a `double range(double)` method and two
 enums `BasicRange` (`CLAMP`, `WRAP`) implementing it. Then write one method
 `applyRange(Ranged r, double v)` that works for *either* enum, and note where
 this idiom fails (what an enum can still NOT provide via an interface).
+
+## Exercise 6 — Naming-pattern relapse (item 39)
+
+A legacy test suite runs methods whose names start with `testISay`. Two silent
+losses occur: a method renamed `testxISay` and one named `tetsTheRealOne`.
+Explain why neither is caught by any tool, then design a `@Retention(RUNTIME)`
+`@Target(METHOD)` annotation plus a tiny runner (in prose/pseudocode) that
+reports passes *and* the exception of failing tests instead of skipping them.
+
+## Exercise 7 — The missing @Override (item 40)
+
+```java
+class Node { public String value() { return "node"; } }
+class Leaf extends Node { public String getValue() { return "leaf"; } }
+```
+
+A `Leaf` stored as a `Node` returns `"node"`. Explain exactly why (what `@Override`
+would have done), and write the corrected `Leaf`.
+
+## Exercise 8 — Marker interface vs annotation (item 41)
+
+Design a method `List<T> findByX(Object query)` either as `findByX(GoodQueryable)`
+or `findByX(Object)` + an `@Queryable` check. Recommend which and justify using
+*both* `instanceof`-type-safety and compile-time enforcement. When (give one
+concrete case) is an annotation the better marker instead?

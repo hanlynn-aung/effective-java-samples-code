@@ -1,7 +1,7 @@
 # Chapter 6 — Enums and Annotations (items 34–41)
 
-Round 1 covers the *enum* items (34–38); the annotation items (39–41) continue
-below.
+Items 34–38 covered the *enum* side; items 39–41 move to *annotations* and the
+marker-interface alternative.
 
 | Item | Title | Core idea |
 |------|-------|-----------|
@@ -139,13 +139,104 @@ pass both kinds into one `compute(GoodOperation op, ...)` — `EXP`, `REMAINDER`
 
 ---
 
-## Senior checklist (round 1)
+## Item 39 — Prefer annotations to naming patterns
+
+The tooling of the 90s used *naming patterns*: "a method is a test if its name
+starts with `test`; mark it off with `tearDown`-style names". Every naming
+pattern fails the same way — **a typo silently breaks the contract**:
+
+- You forget the literal prefix (or misspell it): `tetsFoo` or `test_fool`.
+  No compiler, linker, or runtime error — the "test" simply never runs, and
+  your suite reports green.
+- There is no way to *verify* you meant to mark a method, because the signal is
+  just a string convention.
+
+Annotations replace the pattern with metadata the compiler and tooling can
+see: `@Test` is a *real type*, `@Retention(RUNTIME)` lets a runner reflect on
+it, `@Target(METHOD)` restricts where it may go, and a typo in an annotation
+name is a compile error, not a silent skip.
+
+**Sample:** the repo defines `@GoodTest`, and two runners:
+`BadNamingRunner` finds methods whose name starts with `test`; `GoodAnnotationRunner`
+reflects only over `@GoodTest`-annotated methods. `NamingPatternTest` proves the
+bad runner runs just 2 methods and silently skips `tetsMultiply` (which would
+have thrown), while the good runner discovers all 3 annotated methods — 2 pass,
+1 fails, and the failure is *reported*, not swallowed.
+
+### Annotation lifecycle / meta-annotations (must-know)
+
+- `@Retention` decides whether the annotation survives to runtime: `SOURCE`
+  (compile-time only, e.g. `@Override`), `CLASS` (default, in bytecode but not
+  visible to reflection), `RUNTIME` (visible to reflection — required for any
+  runtime-inspecting framework like a custom runner or a DI container).
+- `@Target` restricts where it can appear: method, type, field, parameter,
+  etc. Restricting gives the compiler a chance to catch misuse (e.g. putting a
+  `@MethodOnly` annotation on a class).
+
+---
+
+## Item 40 — Consistently use the Override annotation
+
+`@Override` is the compiler's leash on your polymorphism. When you add it, the
+compiler *forces* the method to actually override — if you misspelled the
+signature, you get an immediate error.
+
+Without it, the code still compiles, but **silently does the wrong thing**: you
+wrote a *new* method that merely *hides* a superclass method of a different
+name/signature, so calls through the base type never reach your implementation.
+It compiles green, passes review, and only misbehaves at runtime in the least
+obvious way. In an interface-implementing class the compiler warns about the
+ambiguity; in a class hierarchy it's silent.
+
+**Sample:** `BadShapeBase` has `name()`. `BadShapeName.Square` declares
+`getName()` intending to override `name()`. `OverrideTest` shows why it fails:
+`square.getName()` returns "square", but `((BadShapeBase) square).name()` still
+returns "base" — the "override" never fired, and polymorphism broke. `GoodShape`
+bows with `@Override public String name()` and the base-typed call correctly
+returns "square".
+
+---
+
+## Item 41 — Use marker interfaces to define types
+
+A *marker interface* (`java.io.Serializable`, `java.util.RandomAccess`) has no
+methods — its entire job is to make "has this property" a **type**.
+
+Annotations can mark things too, so why prefer an interface when possible?
+Because an interface is a *type*:
+
+- **Compile-time enforcement** — `save(GoodPersistable)` refuses any object
+  that isn't a `GoodPersistable`; a `@Persistable` annotation is only a runtime
+  hint that `save(Object)` must manually check (and a forgetful check means
+  garbage is stored).
+- **`instanceof` works** — you can branch on `entity instanceof RandomAccess`
+  at runtime; there is no `instanceof` for an annotation.
+- Annotation markers win when the property carries *values* (`@Path("/x")`,
+  `@Column("name")`) or when retrofitting many existing classes without
+  changing their type hierarchy.
+
+**Sample:** `GoodPersistable` is an empty marker interface; `GoodRepository.save`
+takes exactly that type, so a non-persistable object can't compile through it.
+`BadPersistable` is a `@Retention(RUNTIME)` annotation and
+`BadAnnotatedOnlyPersistence.save(Object)` accepts *anything*, then performs a
+manual reflection check per call — late, permissive, and easy to forget.
+`MarkerInterfaceTest` pins both: the good repository stores a `GoodPersistable`,
+and the bad repository only rejects a non-annotated `Object` at runtime.
+
+---
+
+## Senior checklist
 
 - [ ] Fixed categories are enums with behavior, never bare `int`s (34).
 - [ ] No business meaning ever derived from `ordinal()` (35).
 - [ ] Set-membership flags use `EnumSet`, not `int |` bit gouging (36).
 - [ ] Enum-keyed lookups use `EnumMap`, never `[...ordinal()]` (37).
 - [ ] Extensible "enums" are an interface + independent enum families (38).
+- [ ] Framework hooks run on annotations with `RUNTIME` retention, not naming
+      patterns (39).
+- [ ] Every override wears `@Override`; the compiler enforces the contract (40).
+- [ ] A property that is a *type* becomes a marker interface; a property with
+      data becomes an annotation (41).
 
 ## Exercises
 
