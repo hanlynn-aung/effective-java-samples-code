@@ -62,8 +62,9 @@ On Windows PowerShell, quote the mainClass argument:
 | 5 | Generics & type safety (items 26–33) | Raw types, wildcards, PECS, bounded type parameters |
 | 6 | Enums & annotations (items 34–41) | Enums with behaviour, `EnumSet`/`EnumMap`, strategy enum |
 | 7 | Lambdas & streams (items 42–48) | Method references, side-effect-free streams, parallel safety |
-| 8 | Methods & general programming (items 49–68) | Parameter validation, defensive copies, `BigDecimal` for money |
-| 9 | Exceptions (items 69–77) | Checked vs unchecked, exception chaining, never swallowing |
-| 10 | Concurrency (items 78–84) | Atomicity, `synchronized` vs atomics, `volatile`, executors, `CompletableFuture` |
-| 11 | Serialization (items 85–90) | Prefer alternatives, safe deserialisation, `transient` secrets |
-| 12 | API design | Small clear APIs, Javadoc, safe collection returns |
+| 8 | Methods (items 49–56) | Parameter validation, defensive copies, signature design, overloading, varargs, empty returns, optionals, doc comments |
+| 9 | General programming (items 57–68) | Scoping, for-each, libraries, exact arithmetic, primitives vs boxed, strings, naming |
+| 10 | Exceptions (items 69–77) | Checked vs unchecked, exception chaining, never swallowing |
+| 11 | Concurrency (items 78–84) | Atomicity, `synchronized` vs atomics, `volatile`, executors, `CompletableFuture` |
+| 12 | Serialization (items 85–90) | Prefer alternatives, safe deserialisation, `transient` secrets |
+| 13 | API design | Small clear APIs, Javadoc, safe collection returns |
