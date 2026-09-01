@@ -100,3 +100,81 @@ Chaining is non-negotiable because without the `cause`, the original
 lower-level failure (and its stack trace, message, and suppressed exceptions) is
 lost — a translated exception that drops its cause makes real production bugs
 un-debuggable.
+
+## Solution 6 — Document the throws (item 74)
+
+```java
+/**
+ * Returns the total for a supported currency.
+ *
+ * @param currency the ISO currency code, which must be non-null and supported
+ * @return the running total for that currency
+ * @throws NullPointerException     if {@code currency} is null
+ * @throws IllegalArgumentException if {@code currency} is not supported
+ * @throws IllegalStateException    if exchange rates are not loaded yet
+ */
+```
+
+The one rule linking doc to code: **the `@throws` is a contract the tests
+enforce** — write a unit test that asserts `total(null)`, `total("ZZZ")`, and
+calling before `loadRates()` throw exactly the documented types. A passing test
+is the proof the documentation and the implementation can't drift apart.
+
+## Solution 7 — Capture the failure (item 75)
+
+```java
+try {
+    write(record);
+} catch (IOException e) {
+    throw new RuntimeException("failed writing record " + record.key()
+            + " to " + destinationPath, e);
+}
+```
+
+The message now names the record key and the path (reproduction values), and
+the `new RuntimeException(msg, e)` chains the original `IOException` as the
+cause so the root stack survives. Without those two things the log line says
+only "failed" — undiagnosable.
+
+## Solution 8 — Make it atomic (item 76)
+
+```java
+void transfer(Account from, Account to, Money amount) {
+    // strategy 1: validate first - check the debit AND the credit both succeed
+    // before mutating either account (e.g. check both limits up front).
+    from.validateDebit(amount);
+    to.validateCredit(amount);
+    from.debit(amount);
+    to.credit(amount);   // now cannot throw for a limit
+}
+```
+
+The fix uses **"validate first, then mutate"**: by checking both sides' limits
+*before* any mutation, `to.credit` can no longer fail from a limit, so `from`
+never ends up debited alone. (Where a mid-step failure is still possible, switch
+to *copy-swap* — compute on temporaries and commit both at the end — or *restore*
+in a `catch`. Whatever the strategy, a failed `transfer` must leave both
+accounts unchanged.)
+
+## Solution 9 — Don't ignore (item 77)
+
+The empty `catch (Exception ignore)` is a defect because:
+- it **destroys diagnosis** — the exception (type, message, trace) is gone;
+- it **hides failure** — `cache.rebuild()` may be silently broken and every
+  later read serves stale/empty data with no signal;
+- it **catches everything**, including programming errors (`Exception` is too
+  broad), turning real bugs into silent no-ops.
+
+Acceptable alternatives:
+
+```java
+catch (Exception e) { throw e; }                      // 1. rethrow if you can't act
+catch (RebuildException e) { throw new CacheException("rebuild failed", e); } // 2. wrap
+catch (RebuildException e) { log.error("cache rebuild failed", e); }          // 3. log+continue
+```
+
+The one defensible case: a **best-effort, explicitly-documented** step where
+failure is an acceptable outcome (e.g. writing a telemetry "last-seen" marker on
+a crash path). Even there the code must still **log at least the exception** as
+context, and the decision must be named — never a blank `catch {}` with no
+trace at any level.

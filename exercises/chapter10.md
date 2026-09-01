@@ -59,3 +59,53 @@ This `save` leaks the low-level layer. Rewrite it to a higher-level
 `PersistenceException` that (a) makes sense to a caller of `save`, (b) chains
 the original `IOException` as the cause, and (c) includes the `Path` in the
 message. Why is chaining the cause non-negotiable?
+
+## Exercise 6 — Document the throws (item 74)
+
+```java
+public double total(String currency) {
+    if (currency == null) throw new NullPointerException("currency");
+    if (!SUPPORTED.contains(currency)) throw new IllegalArgumentException("unsupported: " + currency);
+    if (!ratesReady) throw new IllegalStateException("rates not loaded");
+    return compute(currency);
+}
+```
+
+Write the Javadoc for `total` declaring every thrown (unchecked) exception with
+its trigger, plus the `@param`/`@return`. Then state the one rule that links
+this doc to the code so they can't drift.
+
+## Exercise 7 — Capture the failure (item 75)
+
+```java
+try { write(record); } catch (IOException e) { throw new RuntimeException("failed"); }
+```
+
+The message `"failed"` captures nothing. Rewrite so the message includes the
+record key and the path, and the new exception chains the original `IOException`
+as its cause.
+
+## Exercise 8 — Make it atomic (item 76)
+
+```java
+void transfer(Account from, Account to, Money amount) {
+    from.debit(amount);
+    to.credit(amount);      // if this throws, `from` is already debited
+}
+```
+
+`to.credit` can throw (e.g. daily-limit). The method is currently non-atomic.
+Rewrite it failure-atomic, and explain which of the four strategies (validate
+first / copy-swap / restore / order-by-commit) your fix uses.
+
+## Exercise 9 — Don't ignore (item 77)
+
+A reviewer finds:
+
+```java
+try { cache.rebuild(); } catch (Exception ignore) { /* no-op */ }
+```
+
+Explain why the empty catch is a defect, give three acceptable alternatives
+(rethrow / wrap / log-with-context), and describe the single legitimate case
+where ignoring might be defensible — plus what the code must still do there.

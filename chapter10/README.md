@@ -2,7 +2,7 @@
 
 Using exceptions the way the language intends: for exceptional conditions, at
 the right abstraction, with the right type, well-documented and failure-atomic.
-Round 1 covers items 69–73; round 2 covers 74–77.
+All nine items (69–77) are built across two rounds.
 
 ---
 
@@ -139,6 +139,106 @@ right level.
 
 ---
 
+## Item 74 — Document all exceptions thrown by each method
+
+An API's contract isn't just "what it returns" — it's **what it throws and
+when**. Every method should document, in its Javadoc, every checked exception
+(the compiler already forces declaration) **and every meaningful unchecked
+exception** a caller might hit. Use `@throws` with the condition:
+
+- `@throws NullPointerException if x is null`
+- `@throws IllegalArgumentException if y is negative`
+- `@throws IllegalStateException if the object is not initialised`
+
+This is part of item 56's discipline: doc and code must agree. Undocumented
+exceptions surprise callers who can't know what to guard against; a
+documented-but-wrong `@throws` is a lie that a test should catch. Inherited
+methods can refine the contract with `@throws` on the subclass.
+
+**Sample:** `BadUndocumented.twoDigitYear` throws `IllegalArgumentException`
+for a negative year with no doc comment at all. `GoodDocExceptions` documents
+the `@param` precondition, `@return`, the `@throws` condition, and an
+`@apiNote` pointing to `java.time.Year`. `ExceptionDocTest` shows the documented
+contract (negative year → `IllegalArgumentException`) is actually honoured.
+
+---
+
+## Item 75 — Include failure-capture information in detail messages
+
+When an exception is thrown the detail message is the first — often only —
+evidence a developer sees. It should let you **reconstruct the failure without
+guessing**: "what was asked, what was expected, what went wrong." A message of
+`"invalid"` or `"bad index"` is a dead end; it names nothing.
+
+Good messages capture the offending values and context:
+
+```java
+throw new IndexOutOfBoundsException("index " + i + " out of bounds for length " + size);
+throw new IllegalArgumentException("balance " + b + " < amount " + a);
+```
+
+Don't vary the message or embed HTML/sensitive data as decoration — keep it
+clean, specific, and reproducible. (The *type* of the exception is decided by
+item 72; the *message* is decided here.)
+
+**Sample:** `BadVagueMessage` says `"invalid"` and `"bad index"`.
+`GoodDetailMessage` says `"index 9 out of bounds for length 3"` and `"divide(10,
+0)"`. `DetailMessageTest` checks the good messages actually contain the
+reproduction values (the index, the length, the operands).
+
+---
+
+## Item 76 — Strive for failure atomicity
+
+A failed method invocation should leave the object **in the state it was in
+before the call** — that's *failure atomicity*. If a call throws, the object
+shouldn't be half-way through a mutation, corrupted or partially written.
+Strategies, in order of preference:
+
+1. **Validate first, then mutate** — check all preconditions (including
+   `null`s, ranges, returned value validity) before touching any state.
+2. **Make a copy, then swap** — work on a temporary/local structure and commit
+   it at the end (`items.addAll(validated)`).
+3. **Restore in a `catch`** — if a check must happen mid-mutation, undo the
+   partial writes before rethrowing (more error-prone; prefer 1 or 2).
+4. Unchecked exceptions, checked exceptions, and errors should all aim for
+   atomicity — especially for objects used elsewhere during the call.
+
+**Sample:** `BadNonAtomic.addBatch` appends each item as it goes, then throws on
+a `null` — the demo shows a failed batch leaving 2 items committed (a partial
+write). `GoodAtomic.addBatch` **validates every item first**, then
+`addAll`s — a failed call leaves the list unchanged. `FailureAtomicityTest`
+pins the bad partial state (2) vs. the good unchanged state (0).
+
+---
+
+## Item 77 — Don't ignore exceptions
+
+An empty `catch {}` (`// ignore`, `catch (Exception e) {}`) is one of the worst
+things you can do: it throws away the very information that diagnosis depends
+on, leaving a black box that "sometimes silently misbehaves." If you catch an
+exception, do *something*:
+
+- **Rethrow** if you can't act (`throw e;`).
+- **Wrap with context** (item 73 / 75) to rethrow a more useful exception.
+- **Log it with context** if it's genuinely non-fatal and you must continue.
+- **Act deliberately** — if you truly decide to ignore it, make that decision
+  explicit and visible (a named, documented branch), never a blank catch.
+
+The one honourable exception: an intervening lower-level framework that must
+rethrow; and a *documented* "best-effort" policy — but even then, record
+something, at least at debug level. *Never let the failure disappear silently.*
+
+**Sample:** `BadSwallowed` has an empty `catch (RuntimeException ignored)`, a
+`safeParse` that swallows `NumberFormatException` into a `-1` the caller can't
+distinguish from a real value, and a silent-log catch. `GoodHandle` routes
+exceptions to the uncaught-exception handler, wraps a parse failure with the
+offending input, and validates with `requireNonNull` so a `null` row fails
+loudly. `IgnoreExceptionTest + the demo show the swallowed `-1` versus a
+surfaced, contextual failure.
+
+---
+
 ## Senior checklist
 
 - [ ] Exceptions only for exceptional conditions; normal outcomes via conditions (69).
@@ -146,8 +246,9 @@ right level.
 - [ ] No forced `catch` on calls that can't meaningfully fail (71).
 - [ ] Favor standard exceptions over invented ones (72).
 - [ ] Translate low-level exceptions to the abstraction, chaining the cause (73).
-
----
-
-*Round 2 (74–77: document exceptions, failure-capture details, failure
-atomicity, never ignore exceptions) continues.*
+- [ ] Every method's Javadoc names all thrown exceptions (`@throws`), checked and
+      meaningful unchecked (74).
+- [ ] Detail messages capture the values needed to reproduce the failure (75).
+- [ ] A method that fails leaves the object in its prior state where possible (76).
+- [ ] Never swallow an exception silently — rethrow, wrap with context, or act
+      deliberately and visibly (77).
