@@ -1,4 +1,4 @@
-package chapter11.bad;
+package chapter12.bad;
 
 import java.io.Serializable;
 

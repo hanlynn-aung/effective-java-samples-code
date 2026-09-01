@@ -1,4 +1,4 @@
-package chapter11.good;
+package chapter12.good;
 
 import java.io.Serial;
 import java.io.Serializable;
