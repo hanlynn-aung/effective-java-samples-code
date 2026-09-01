@@ -106,3 +106,46 @@ public class Cache {
 Critique the signature against item 64: what's locked in, and why can't the
 field type change later? Rewrite the field, constructor/initializer, and return
 type as interfaces, and name two concrete impls each `Map`/`List` could swap to.
+
+## Exercise 9 — Reflection vs. interface (item 65)
+
+```java
+Object svc = Class.forName("com.acme.ReportService")
+                   .getConstructor().newInstance();
+String html = String.class.cast(svc.getClass()
+    .getMethod("render", Integer.class).invoke(svc, 42));
+```
+
+List three concrete costs of this reflective call, then rewrite it against a
+compile-time `Reporter` interface (with one implementation) and say how that
+removes each cost.
+
+## Exercise 10 — Native or JDK? (item 66)
+
+A colleague proposes JNI for (a) computing a file checksum, (b) reading an
+environment variable, (c) calling a vendor C library for a hardware sensor, and
+(d) sorting. For each, say whether Java can do it already (name the JDK class/
+method) or whether native is arguably justified.
+
+## Exercise 11 — Optimize, measured (item 67)
+
+```java
+// "optimization": manual string cache keyed by hash
+public int wordCount(String s) {
+    // uses a static HashMap<Integer,Integer> to cache s.length()
+    return s.split("\\s+").length;
+}
+```
+
+Explain two reasons the caching "optimization" is likely pointless or harmful
+(look at what's actually being measured), and describe the correct order of
+operations to improve this method. What tool would find the real hot spot?
+
+## Exercise 12 — Rename for readability (item 68)
+
+```java
+public class pr { public int n; public boolean iv; public void cs(int t){...} }
+```
+
+Rewrite this in valid, conventional Java naming/style, and state the rule for
+each change (type names, field names, method verbs, boolean prefixes).

@@ -1,8 +1,7 @@
 # Chapter 9 — General Programming (items 57–68)
 
 The craft of everyday code: scoping, loops, libraries, and exact arithmetic.
-Round 1 covered items 57–60; round 2 covers items 61–64; round 3 finishes
-through item 68.
+All twelve items (57–68) are built across three rounds.
 
 ---
 
@@ -196,6 +195,99 @@ signature forces callers to supply exactly those. `GoodInterfaceType` declares
 
 ---
 
+## Item 65 — Prefer interfaces to reflection
+
+Reflection lets you discover and call arbitrary code at runtime
+(`Class.forName`, `getMethod`, `invoke`). It costs: **compile-time type checks
+are lost** (a typo'd class or method name surfaces only as a runtime
+exception), performance is worse, and it bypasses encapsulation. Prefer a
+**compile-time interface** wired by dependency injection or
+`ServiceLoader` — the compiler catches a wrong name, and callers see a real
+contract.
+
+Reflection has legitimate niches: runtime plugins/serializers, frameworks that
+must inspect unknown classes. Reserve it for those, isolate the introspection
+behind one interface, and never spread `getMethod` calls through application
+code.
+
+**Sample:** `BadReflective.buildGreeting` looks up a class by string, finds its
+constructor and `greet` method by name, and invokes reflectively — a typo in
+the class name throws only at runtime. `GoodInterfaceInvocation` depends on the
+`Greeter` interface with a `FriendlyGreeter` implementation; `ReflectionTest`
+shows the good path working (compile-checked) vs. the bad path failing at
+runtime.
+
+---
+
+## Item 66 — Use native methods judiciously
+
+Native (JNI) methods trade Java's safety for speed or OS access, but carry
+serious costs: **no portability** (native code doesn't run everywhere), **no
+memory safety** (a native bug can crash the whole JVM), harder debugging/GC
+interaction, and complex build tooling. Before reaching for native code, ask:
+does the JDK already do this in Java? — `System.currentTimeMillis()`,
+`File`/NIO, `java.util.zip`, `ProcessBuilder`, `ThreadLocalRandom`, etc.
+
+Use native only for true needs the JDK can't meet: calling an existing native
+library (legacy C syscalls, hardware drivers, platform APIs), or a
+provably-hot routine where Java proves too slow. Make the native call a thin,
+isolated wrapper so the risk doesn't leak everywhere.
+
+**Sample:** `BadAlwaysNative` "optimises" uppercasing and getting the time by
+going native — when `String.toUpperCase()` and `System.currentTimeMillis()` are
+pure Java. `GoodJavaFirst` uses exactly those; `NativeTest` shows the bad
+bridges rejected while the good Java calls work.
+
+---
+
+## Item 67 — Optimize judiciously — measure first
+
+Donald Knuth's rule: make it correct, then make it fast, and **only after
+measuring** (a profiler, not vibes). Three traps:
+
+1. **Premature complexity.** "Optimising" an unmeasured path with bit-twiddling
+   or hand-rolled caches makes code harder to read with no proven payoff.
+2. **Optimising the wrong thing.** 90% of time is usually in a few hot spots;
+   without profiles you optimise code that was never slow.
+3. **O(n²) blind spots.** Prefer the algorithmic/large-scale fixes (item 58
+   for-each, item 63 `StringBuilder`, item 59 libraries) over micro-constants.
+
+Keep the simple, correct version; if a profile shows a real hot spot, optimise
+*that*, keep the alternative behind a test that proves it's still correct, and
+re-measure the win.
+
+**Sample:** `BadPreoptimize.sumFirst` adds `& Long.MAX_VALUE` (pointless
+"optimisation" on an unmeasured path). `GoodMeasureFirst` writes the plain,
+readable for-each. `OptimizeTest` and the demo show **they produce the identical
+result** — the bad version only added obscurity, not speed.
+
+---
+
+## Item 68 — Adhere to generally accepted naming conventions
+
+Names are the first contract a reader meets. Follow the platform conventions
+so code is greppable, self-explanatory, and idiomatic:
+
+- **Types:** `PascalCase` — `ShoppingCart`, `HttpClient`, `FooBar`.
+- **Methods & fields:** `camelCase` — `calculateTotal`, `orderDate`.
+- **Constants:** `CONSTANT_CASE` — `MAX_DAYS`, `DEFAULT_TIMEOUT_MILLIS`.
+- **Local variables:** `camelCase`, full words over single letters (`limit`
+  over `n`) — abbreviate only for a well-known short scope.
+- **Packages:** lowercase, reversed domain (`com.acme.widgets`).
+- **Patterns & contract methods:** conventional suffixes/verb names —
+  `getX`/`setX`, `isX` for booleans, `hasX`, `size()`, `toString()`.
+
+A bad name forces every reader to decode it every time; a good name states its
+meaning once.
+
+**Sample:** `BadNaming` uses `n`, `x`, `gv()`, `st()`, `gt()`, `chk()` — the
+demo asks "what does `chk()` return?". `GoodNaming` uses `limit`, `value`,
+`getLimit()`, `setValue()`, `isAtOrAboveLimit()` — self-evident. Both do the
+same work; `NamingConventionTest` verifies the good one also validates its
+`limit` (a named constant `MINIMUM`).
+
+---
+
 ## Senior checklist
 
 - [ ] Variables declared where ready, in the smallest block that needs them (57).
@@ -208,7 +300,11 @@ signature forces callers to supply exactly those. `GoodInterfaceType` declares
 - [ ] No magic strings for states/kinds/ids — use enums and value types (62).
 - [ ] Build strings with `StringBuilder` (pre-sized) inside loops, never `+=` (63).
 - [ ] Refer to objects by interface (`List`/`Map`) so implementations can vary (64).
-
----
-
-*Round 3 (65–68) continues.*
+- [ ] Prefer compile-time interfaces/DI to reflection; only introspect where you
+      truly need runtime discovery (65).
+- [ ] Reach for native methods only where Java can't do it — never for what the
+      JDK already provides (66).
+- [ ] Optimise after profiling the measured cost; keep code correct and readable
+      first (67).
+- [ ] Follow conventional naming: `PascalCase` classes, `camelCase` methods/fields,
+      `CONSTANT_CASE` static finals, full words (68).
